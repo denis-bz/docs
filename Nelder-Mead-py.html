@@ -1,0 +1,107 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta name="generator" content="pandoc" />
+  <title></title>
+  
+  <title>Nelder-Mead function minimization with restarts and verbose</title>
+  <meta name="author" content="Denis Bzowy denis-bz-py@t-online.de" />
+  <meta name="date" content="2012-08-31 Aug" />
+  
+  <style type="text/css">
+  	body { 
+  		font-family: Arial, sans-serif;
+  		font-size: 100%;
+  		max-width: 800px;
+  		margin-left: 1pt
+  		padding: 0;
+  		color: #333;
+  		background: none;
+  		/* line-height: 1.25; */
+  		}
+  	code {
+  		font-family: /*"Courier New",*/ Courier, monospace;
+  		} 
+  	pre {
+  		background-color: #f0fff0;
+  		margin-left: 2em;
+  	}
+  
+  	/*Headings */
+  	h1,h2,h3,h4,h5,h6 {
+  		font-family: Arial, sans-serif;
+  		color: #248;
+  		border-bottom: 1px solid #ddd;
+  		}
+  	h1 { font-size: 150%;
+  		}
+  	h2 { font-size: 120%;
+  		margin-top: 1em;
+  		}
+  
+  	blockquote { margin: 1.3em; padding: 1em;  font-size: 10pt; }
+  	hr { background-color: #ccc; }
+  
+  	/* Images */
+  	img { float: left; margin: 1em 1.5em 1.5em 0; }
+  	a img { border: none; }
+  </style>
+  
+</head>
+<body>
+<!-- pandoc -r markdown -w html -H denis.css  this.doc  > this.html -->
+
+<h1 id="nelder-mead-function-minimization-with-restarts-and-verbose">Nelder-Mead function minimization with restarts and verbose</h1>
+<p>The Nelder-Mead algorithm minimizes functions using only their values, not derivatives. It is slow and steady, relatively insensitive to noise, so often the method to try first. For a clear introduction, read and look at the pictures in <a href="http://www.scholarpedia.org/article/Nelder-Mead_algorithm">Nelder-Mead algorithm</a> .</p>
+<p>This implementation of N-M is aimed at two groups of people: users who want an improved N-M minimizer without having to understand the details, and experimenters. It has:</p>
+<ul>
+<li>restarts: after finding a local minimum, look around to see if you can improve it</li>
+<li><code>verbose=</code> and <code>save=</code> to help follow and plot the iterations</li>
+<li>written in Python with NumPy, for clarity and ease of trying things out.</li>
+</ul>
+<h2 id="example">Example:</h2>
+<pre><code>from opt.neldermead.nm import Fmin_nm
+fmin = Fmin_nm( func, dim=10, ftol=.001, maxiter=1000 )
+F, X = fmin( x0, initstep=.5, lookstep=.1 )
+    # F[0] is the best function value, at X[0]
+    # X is the whole simplex, n+1 x n; F is func(X)
+</code></pre>
+<p>(The call is split into two parts: <code>Fmin_nm()</code> just saves all the parameters in a class instance, then <code>fmin()</code> does the work.)</p>
+<h2 id="in">In:</h2>
+<p><code>func</code>: the function to be minimized, a 1d n-vector to a real<br /><code>dim</code>: the number of variables<br /><code>ftol</code>: iterate until <code>fhi - flo</code> on the simplex is <code>&lt;= ftol</code><br /><code>maxiter</code>: at most maxiter N-M steps in all<br /><code>maxrestart</code>: N-M, restart, N-M, restart ... at most this many times<br /><code>verbose</code>: 1 print summaries,<br />    2 print iterations where flo, the best func value so far, changes,<br />    3 print every iteration<br /><br />In <code>fmin( x0, initstep, lookstep )</code>, <code>x0</code> and <code>initstep</code> are used to generate a start simplex, and <code>lookstep</code> to generate restart simplexes. <code>initstep</code> and <code>lookstep</code> can be scalars, or n-vectors with a different stepsize in each dimension. <code>x0</code> can also be an n+1 x n user simplex; in that case, give <code>initstep=None</code>.</p>
+<p><small> (Yet more parameters, to experiment with:<br /><code>grow</code>: look at <code>func( x0 +- step * grow grow^2 grow^3 ... )</code> as long as it improves, in growing the start and restart simplexes. The default is 1.41.<br /><code>save=dict( fhi=[], flo=[] ... )</code> saves nm internal vars on each iteration, to <code>savez</code> and plot; the default is <code>None</code><br /><code>recs</code>: a list of Reflect Expand Contract Shrink factors, defaults 1 1.62 .62 .38 .<br />) </small></p>
+<h2 id="out">Out:</h2>
+<p><code>F</code>: n+1 func values on <code>X</code>, increasing: <code>F[0] &lt;= F[1] ... &lt;= F[n]</code><br /><code>X</code>: a simplex, n+1 x n: <code>F[0] = func(X[0])</code> ...</p>
+<h2 id="what-it-does">What it does:</h2>
+<p>A &quot;simplex&quot; is a triangle in 2d, a tetrahedron in 3d, n+1 points in n dimensions. (In 2d, think of a triangle flopping around a rocky mountainside, trying to get lower and lower.) Call its highest and lowest points <code>xhi</code> <code>xlo</code>, and their function values <code>fhi</code> and <code>flo</code>. (We're minimizing, so low is good, high is bad.)</p>
+<p>The N-M algorithm takes a simplex and &quot;tumbles&quot; it, usually moving just one point at a time, the highest. In 2d, it moves <code>xhi</code> toward the midpoint of the lower two, then the new <code>xhi</code> toward the midpoint of the lower two, and so on. It keeps doing this until the simplex is flat enough: <code>fhi - flo &lt;= ftol</code>, e.g. 1 - .999 &lt;= .001 . (The lowest <code>xlo</code> and <code>flo</code> can stick, not change for several iterations, so tracking <code>flo</code> alone doesn't work very well.)</p>
+<p>Where do simplexes come from ? This code has a module <code>looknear.py</code> which generates a start simplex from a user-given start point <code>x0</code> and step size <code>initstep</code>, and restart simplexes from best-so-far points and user step size <code>lookstep</code>. How this is done is interesting (&quot;walking gradient&quot;) and subject to change.</p>
+<h2 id="restarts-look-around">Restarts: look around</h2>
+<p>When you're lost in the woods, it's a good idea to stop and look around to see where you are on a larger scale. Similarly, when an optimization program says &quot;done, found a minimum&quot;, then it can pay to restart: look around a bit farther to try to get out of a local valley. In programming terms, say we have two functions <code>Opt()</code> and <code>Lookaround()</code> which search from a start point <code>X</code>, or for N-M from a whole simplex <code>X</code>. Then we can alternate <code>Opt</code>, <code>Lookaround</code>, <code>Opt</code>, <code>Lookaround</code> ... like this:</p>
+<pre><code>def fmin( x0, initstep, lookstep ):
+    X = start_simplex( x0, initstep )
+    loop:
+        Fopt, Xopt = Opt(X)  # local minimum
+        Fnear, Xnear = Lookaround( Xopt, lookstep )
+        if Fnear is better than Fopt by at least ftol:
+            X = Xnear
+            continue, Opt(X)
+        else:
+            return the better of Xopt and Xnear
+</code></pre>
+<p><code>nm.py</code> does just this, with standard N-M for <code>Opt()</code> and <code>looknear.Simplex()</code> for <code>Lookaround()</code> .</p>
+<p>How should one choose the stepsizes <code>initstep</code> and <code>lookstep</code> ? Function landscapes can be noisy in so many different ways — steep cliffs, deep rifts at different scales and different directions — that no answer is possible; you'll have to experiment. To help, <code>nm.py</code> has the parameters <code>verbose</code> = 1 2 or 3 to follow the iterations, and <code>save</code> to make it easy to save nm's internal variables to plot. Think of ways to plot your <code>func()</code> at various scales near local minima — and please share your plots.</p>
+<h2 id="notes">Notes</h2>
+<p><code>ftol</code> has a big effect on runtime. Start with say .01 or .001, and run with <code>verbose=2</code> to see how fast <code>func()</code> decreases. Note that <code>ftol</code> is absolute, <code>fhi - flo &lt;= ftol</code>.</p>
+<p><code>verbose</code> prints <code>func.cost</code> if that attribute exists, e.g. <code>func.cost += 1</code> in the func and <code>func.cost = 0</code> outside to initialize it.</p>
+<p><code>func()</code> can be a <code>Funcbox( func, box=(lo,hi), grid=.001, penaltybox=(lo,hi) )</code>. This is a lightweight wrapper to grid and clip <code>x</code>, and optionally add a quadratic penalty, before calling <code>func( x )</code>; see <code>opt/util/funcbox.py</code> .</p>
+<p>N-M moves <code>xhi</code> along the line <code>xhi</code> — <code>xcentre</code> — <code>xreflect</code>. My attempts at fancier line search have not been successful; it seems to be more important to keep <code>xhi</code> moving, than to move it accurately.</p>
+<h2 id="module-overview">Module overview</h2>
+<p>    <code>neldermead/nm.py</code>: class <code>Fmin_nm, __call__()</code><br />    <code>neldermead/looknear.py</code>: class <code>Simplex, linesearch()</code><br />    <code>neldermead/optutil.py</code>: misc<br />    <code>neldermead/test/test-nm.py</code><br />    <code>neldermead/notes/</code><br />    <code>opt/testfuncs/*</code>: see <code>testfuncs.Readme</code> .</p>
+<h2 id="comments-welcome">Comments welcome</h2>
+<p>Do share your results, plots, and especially test functions: what worked, what didn't work.</p>
+<p>cheers<br />— denis</p>
+<p>Last change: 31 August 2012</p>
+</body>
+</html>
