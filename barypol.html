@@ -1,0 +1,81 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta name="generator" content="pandoc" />
+  <title></title>
+  <title>
+  Intergrid: interpolate data given on an Nd rectangular grid, uniform or non-uniform.
+  </title>
+  <meta name="author" content="Denis Bzowy denis-bz-py@t-online.de" />
+  <meta name="date" content="2013-03-05 Mar" />
+  
+  <style type="text/css">
+  	body { 
+  		font-family: Arial, sans-serif;
+  		font-size: 100%;
+  		line-height: 120%;
+  		max-width: 800px;
+  		margin-left: 1pt
+  		padding: 0;
+  		color: #333;
+  		background: none;
+  		}
+  	code {
+  		font-family: /*"Courier New",*/ Courier, monospace;
+  		font-size: 95%;
+  		} 
+  	pre {
+  		background-color: #f0fff0;
+  		margin-left: 2em;
+  	}
+  
+  	/*Headings */
+  	h1,h2,h3,h4,h5,h6 {
+  		font-family: Arial, sans-serif;
+  		color: #248;
+  		border-bottom: 1px solid #ccc;
+  		}
+  	h1 { font-size: 150%;
+  		padding-bottom: 5px;
+  		}
+  	h2 { font-size: 120%;
+  		margin-top: 1em;
+  		padding-bottom: 2px;
+  		}
+  
+  	blockquote { margin: 1.3em; padding: 1em;  font-size: 10pt; }
+  	hr { background-color: #ccc; }
+  
+  	/* Images */
+  	img { float: left; margin: 1em 1.5em 1.5em 0; }
+  	a img { border: none; }
+  </style>
+  
+</head>
+<body>
+<h1 id="barypol-fast-interpolation-in-a-uniform-d-dimensional-grid">Barypol: fast interpolation in a uniform d-dimensional grid</h1>
+<p>Barypol interpolates using dim + 1 corners of a simplex (triangle, tetrahedron ...) around each query point.<br />After Munos and Moore, &quot;Variable Resolution Discretization in Optimal Control&quot;, 1999, <a href="http://repository.cmu.edu/cgi/viewcontent.cgi?article=1259&amp;context=robotics">pdf</a>.</p>
+<h2 id="example">Example</h2>
+<pre><code>    # set up an interpolator function &quot;barypol&quot; --
+barypol = Barypol( griddata, lo=lo, hi=hi )
+    # interpolate at query_points Nquery x dim --
+query_values = np.zeros(Nquery)
+barypol.at( query_points, query_values )  # -&gt; Nquery values
+</code></pre>
+<h2 id="parameters">Parameters</h2>
+<p><code>griddata</code>: e.g. 4d [lat, lon, alt, time] -&gt; temperature, np.float64<br /><code>lo, hi</code>: user coordinates of the corners griddata[0 0 0 ...] and griddata[-1 -1 -1 ...]<br /><code>query_points</code>: Nquery x dim points are clipped to <code>lo hi</code>, then linearly scaled to <code>griddata.shape</code>, then interpolated in a d+1 simplex in griddata.</p>
+<h2 id="implementation">Implementation</h2>
+<p><code>barypol.h</code>: header-only C++ (templated, but instantiated only for double)<br /><code>barypol.pyx</code>: a Cython wrapper, Python NumPy → Cython → <code>barypol.h</code>.</p>
+<h2 id="license">License</h2>
+<p><a href="http://en.wikipedia.org/wiki/GNU_General_Public_License">GPLv3</a> — no use in closed-source.</p>
+<h2 id="notes">Notes</h2>
+<p>Any interpolator that looks at a fixed number of neighbors may have jumps, discontinuities, where nearby points have different sets of neighbors. Barypol looks at d+1 neighbors, so is not as smooth as Intergrid, which looks at 2^d neighbors. However quantifying smoothness is hard, and gets harder in 3d 4d 5d.</p>
+<h2 id="todo">Todo</h2>
+<p>Non-uniform box grids like Intergrid<br />Gradient</p>
+<h2 id="see-also">See also</h2>
+<p><a href="http://denis-bz.github.com/docs/intergrid.html">Intergrid</a><br /><a href="http://denis-bz.github.com/docs/barypol.html">Barypol</a><br /><a href="http://github.com/denis-bz/interpol/barypol">Barypol on github</a></p>
+<h2 id="comments-welcome">Comments welcome</h2>
+<p>and testcases most welcome<br />  — denis-bz-py at t-online dot de<br />  Last change: 2013-03-12 Mar</p>
+</body>
+</html>
